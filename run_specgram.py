@@ -21,7 +21,7 @@ import mic_read
 
 ############### Constants ###############
 #SAMPLES_PER_FRAME = 10 #Number of mic reads concatenated within a single window
-SAMPLES_PER_FRAME = 4
+SAMPLES_PER_FRAME = 2
 nfft = 1024#256#1024 #NFFT value for spectrogram
 overlap = 1000#512 #overlap value for spectrogram
 rate = mic_read.RATE #sampling rate
@@ -34,7 +34,7 @@ inputs: audio stream and PyAudio object
 outputs: int16 array
 """
 def get_sample(stream,pa):
-    data = mic_read.get_data(stream,pa)
+    data = mic_read.get_data(stream, pa)
     return data
 """
 get_specgram:
@@ -44,9 +44,9 @@ output: 2D Spectrogram Array, Frequency Array, Bin Array
 see matplotlib.mlab.specgram documentation for help
 """
 def get_specgram(signal,rate):
-    arr2D,freqs,bins = specgram(signal,window=window_hanning,
-                                Fs = rate,NFFT=nfft,noverlap=overlap)
-    return arr2D,freqs,bins
+    arr2D,freqs,bins = specgram(signal, window=window_hanning,
+                                Fs=rate, NFFT=nfft, noverlap=overlap)
+    return arr2D, freqs, bins
 
 """
 update_fig:
@@ -58,26 +58,35 @@ outputs: updated image
 """
 def update_fig(n):
     data = get_sample(stream,pa)
-    arr2D,freqs,bins = get_specgram(data,rate)
+    arr2D, freqs, bins = get_specgram(data, rate)
     im_data = im.get_array()
+    # print(type(n))
+    # print(n)
+    # print(SAMPLES_PER_FRAME)
     if n < SAMPLES_PER_FRAME:
         im_data = np.hstack((im_data,arr2D))
         im.set_array(im_data)
     else:
         keep_block = arr2D.shape[1]*(SAMPLES_PER_FRAME - 1)
-        im_data = np.delete(im_data,np.s_[:-keep_block],1)
-        im_data = np.hstack((im_data,arr2D))
+        im_data = np.delete(im_data, np.s_[:-keep_block], 1)
+        im_data = np.hstack((im_data, arr2D))
         im.set_array(im_data)
-    timestr = time.strftime("%Y.%m.%d-%H.%M.%S")
-    plt.savefig('Photos\\books_read_' + timestr + '.png')
+    plt.gca().set_axis_off()
+    plt.subplots_adjust(top=1, bottom=0, right=1, left=0,
+                        hspace=0, wspace=0)
+    plt.margins(0, 0)
+    plt.gca().xaxis.set_major_locator(plt.NullLocator())
+    plt.gca().yaxis.set_major_locator(plt.NullLocator())
+    try:
+        plt.savefig('Photos\\gray.jpeg')
+    except:
+        print('')
     return im,
-
-
 
 
 if __name__ == "__main__":
     ############### Initialize Plot ###############
-    fig = plt.figure()
+    fig = plt.figure(figsize=(0.64,0.64))
     """
     Launch the stream and the original spectrogram
     """
@@ -89,21 +98,29 @@ if __name__ == "__main__":
     """
     extent = (bins[0], bins[-1] * SAMPLES_PER_FRAME, freqs[-1], freqs[0])
     im = plt.imshow(arr2D, aspect='auto', extent=extent, interpolation="none",
-                    cmap='jet', norm=LogNorm(vmin=.01, vmax=1))
-    plt.xlabel('Time (s)')
-    plt.ylabel('Frequency (Hz)')
-    plt.title('Real Time Spectogram')
+                    cmap='gray', norm=LogNorm(vmin=.01, vmax=1))
+                 # plt.xlabel('Time (s)')
+                 # plt.ylabel('Frequency (Hz)')
+                 # plt.title('Real Time Spectogram')
     plt.gca().invert_yaxis()
+    plt.gca().axes.get_xaxis().set_visible(False)
+    plt.gca().axes.get_yaxis().set_visible(False)
+    plt.text(2.85, 2.9, 'label',
+             bbox={'facecolor': 'white', 'edgecolor': 'none', 'pad': 10})
     #plt.colorbar() #enable if you want to display a color bar
     #plt.savefig('Photos\\books_read' + timestr + '.png')
 
     ############### Animate ###############
-    anim = animation.FuncAnimation(fig, update_fig, blit=False,interval = mic_read.CHUNK_SIZE / 1000)
-
-    try:
-        plt.show()
-    except:
-        print("Plot Closed")
+    # anim = animation.FuncAnimation(fig, update_fig, blit=False,interval = mic_read.CHUNK_SIZE / 1000)
+    count = -1
+    while True:
+        count += 1
+        update_fig(count)
+    
+    # try:
+    #     plt.show()
+    # except:
+    #     print("Plot Closed")
 
     ############### Terminate ###############
     stream.stop_stream()
